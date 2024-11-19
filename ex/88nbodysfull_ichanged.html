@@ -19,7 +19,7 @@ body, html {
 
 var w = document.body.clientWidth,
     h = document.body.clientHeight,
-    nodes = pv.range(100).map(function(i) {
+    nodes = pv.range(88).map(function(i) {
       return {x: w * Math.random(),
               y: h * Math.random(),
               r: 2 + Math.random() * 8};
@@ -52,7 +52,7 @@ vis.add(pv.Panel)
 setInterval(function() {
     sim.step();
     vis.render();
-  }, 42);
+  }, 44);
 
     </script>
   </body>
