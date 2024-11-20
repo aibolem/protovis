@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Radial Cluster Layout</title>
+    <link rel="stylesheet" href="vega/assets/syntax.css">
+    <link rel="stylesheet" href="vega/assets/main.css">
+    <script src="vega/vega.min.js"></script>
+    <link type="text/css" rel="stylesheet" href="ex.css?3.2"/>
+    <script type="text/javascript" src="../protovis-r3.2.js"></script>
+    <script type="text/javascript" src="flare.js"></script>
+    <style type="text/css">
+        #fig {
+            width: 920px;
+            height: 820px;
+        }
+    </style>
+  </head>
+  <body>
+
+<script>
+var spec = {
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "An example of a radial layout for a node-link diagram of hierarchical data.",
+  "width": 720,
+  "height": 720,
+  "padding": 5,
+  "autosize": "none",
+
+  "signals": [
+    {
+      "name": "labels", "value": true,
+      "bind": {"input": "checkbox"}
+    },
+    {
+      "name": "radius", "value": 280,
+      "bind": {"input": "range", "min": 20, "max": 600}
+    },
+    {
+      "name": "extent", "value": 360,
+      "bind": {"input": "range", "min": 0, "max": 360, "step": 1}
+    },
+    {
+      "name": "rotate", "value": 0,
+      "bind": {"input": "range", "min": 0, "max": 360, "step": 1}
+    },
+    {
+      "name": "layout", "value": "tidy",
+      "bind": {"input": "radio", "options": ["tidy", "cluster"]}
+    },
+    {
+      "name": "links", "value": "line",
+      "bind": {
+        "input": "select",
+        "options": ["line", "curve", "diagonal", "orthogonal"]
+      }
+    },
+    { "name": "originX", "update": "width / 2" },
+    { "name": "originY", "update": "height / 2" }
+  ],
+
+  "data": [
+    {
+      "name": "tree",
+      "url": "data/flare.json",
+      "transform": [
+        {
+          "type": "stratify",
+          "key": "id",
+          "parentKey": "parent"
+        },
+        {
+          "type": "tree",
+          "method": {"signal": "layout"},
+          "size": [1, {"signal": "radius"}],
+          "as": ["alpha", "radius", "depth", "children"]
+        },
+        {
+          "type": "formula",
+          "expr": "(rotate + extent * datum.alpha + 270) % 360",
+          "as":   "angle"
+        },
+        {
+          "type": "formula",
+          "expr": "PI * datum.angle / 180",
+          "as":   "radians"
+        },
+        {
+          "type": "formula",
+          "expr": "inrange(datum.angle, [90, 270])",
+          "as":   "leftside"
+        },
+        {
+          "type": "formula",
+          "expr": "originX + datum.radius * cos(datum.radians)",
+          "as":   "x"
+        },
+        {
+          "type": "formula",
+          "expr": "originY + datum.radius * sin(datum.radians)",
+          "as":   "y"
+        }
+      ]
+    },
+    {
+      "name": "links",
+      "source": "tree",
+      "transform": [
+        { "type": "treelinks" },
+        {
+          "type": "linkpath",
+          "shape": {"signal": "links"}, "orient": "radial",
+          "sourceX": "source.radians", "sourceY": "source.radius",
+          "targetX": "target.radians", "targetY": "target.radius"
+        }
+      ]
+    }
+  ],
+
+  "scales": [
+    {
+      "name": "color",
+      "type": "linear",
+      "range": {"scheme": "magma"},
+      "domain": {"data": "tree", "field": "depth"},
+      "zero": true
+    }
+  ],
+
+  "marks": [
+    {
+      "type": "path",
+      "from": {"data": "links"},
+      "encode": {
+        "update": {
+          "x": {"signal": "originX"},
+          "y": {"signal": "originY"},
+          "path": {"field": "path"},
+          "stroke": {"value": "#ccc"}
+        }
+      }
+    },
+    {
+      "type": "symbol",
+      "from": {"data": "tree"},
+      "encode": {
+        "enter": {
+          "size": {"value": 100},
+          "stroke": {"value": "#fff"}
+        },
+        "update": {
+          "x": {"field": "x"},
+          "y": {"field": "y"},
+          "fill": {"scale": "color", "field": "depth"}
+        }
+      }
+    },
+    {
+      "type": "text",
+      "from": {"data": "tree"},
+      "encode": {
+        "enter": {
+          "text": {"field": "name"},
+          "fontSize": {"value": 9},
+          "baseline": {"value": "middle"}
+        },
+        "update": {
+          "x": {"field": "x"},
+          "y": {"field": "y"},
+          "dx": {"signal": "(datum.leftside ? -1 : 1) * 6"},
+          "angle": {"signal": "datum.leftside ? datum.angle - 180 : datum.angle"},
+          "align": {"signal": "datum.leftside ? 'right' : 'left'"},
+          "opacity": {"signal": "labels ? 1 : 0"}
+        }
+      }
+    }
+  ]
+}
+;
+
+function image(view, type) {
+  return function(event) {
+    event.preventDefault();
+    view.toImageURL(type).then(function(url) {
+      var link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('target', '_blank');
+      link.setAttribute('download', 'radial-tree-layout.' + type);
+      link.dispatchEvent(new MouseEvent('click'));
+    }).catch(function(error) { console.error(error); });
+  };
+}
+
+var view = new vega.View(vega.parse(spec), {
+  loader: vega.loader({baseURL: '/vega/'}),
+  logLevel: vega.Warn,
+  renderer: 'svg'
+}).initialize('#radial-tree-layout').hover().run();
+
+document.querySelector('#radial-tree-layout-png').addEventListener('click', image(view, 'png'));
+document.querySelector('#radial-tree-layout-svg').addEventListener('click', image(view, 'svg'));
+</script>
+
+</div>
+    
+    <div id="center"><div id="fig">
+    <script type="text/javascript+protovis">
+
+      function onNodeClick(node) {
+          var path = node.nodeName;
+          var parentNode = node.parentNode;
+          while(parentNode) {
+              path = parentNode.nodeName + "/" + path;
+              parentNode = parentNode.parentNode;
+          }
+          top.location = "http://svn.prefuse.org/flare/trunk/flare/flare/src/" + path + (node.firstChild?"/":".as");
+      }
+
+      var vis = new pv.Panel()
+          .width(600)
+          .height(600)
+          .margin(110);
+
+      var layout = vis.add(pv.Layout.Cluster)
+          .nodes(pv.dom(flare)
+              .root("flare")
+              .sort(function(a, b) pv.naturalOrder(a.nodeName, b.nodeName))
+              .nodes())
+          .group(true)
+          .innerRadius(120)
+          .orient("radial");
+
+      layout.link.add(pv.Line);
+
+      layout.node.add(pv.Dot)
+          .fillStyle(function(n) n.firstChild ? "#aec7e8" : "#ff7f0e")
+          .title(function t(d) d.parentNode ? (t(d.parentNode) + "." + d.nodeName) : d.nodeName)
+          .cursor("pointer")
+          .event("click", onNodeClick);
+
+      layout.label.add(pv.Label);
+
+      vis.render();
+
+    </script>
+<div class="caption">
+The Flare package tree laid out in radial layers. All the nodes in a given layer have the same maximum child depth.
+<br/><br/>
+Source: <a class="source" href="http://flare.prefuse.org">Flare Visualization Toolkit</a>
+</div>
+  </div>
+        <div class="example">
+
+<div class="embed">
+  <div id="radial-tree-layout" class="view"></div>
+  <a href="https://composarc.github.io/vega/examples/radial-tree-layout.vg.json">View Source</a>
+  <a id="radial-tree-layout-png" href="#">Export PNG</a>
+  <a id="radial-tree-layout-svg" href="#">Export SVG</a>
+</div>
+    </div>
+  </body>
+</html>
